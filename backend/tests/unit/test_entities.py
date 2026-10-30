@@ -139,6 +139,17 @@ def test_text_block_requires_positive_font_size() -> None:
         TextBlock(page=1, bbox=_bbox(), text="hola", font_size=0)
 
 
+def test_text_block_requires_non_negative_heading_level() -> None:
+    with pytest.raises(DomainValidationError, match="heading_level"):
+        TextBlock(
+            page=1,
+            bbox=_bbox(),
+            text="hola",
+            font_size=10,
+            heading_level=-1,
+        )
+
+
 def test_table_block_requires_markdown() -> None:
     with pytest.raises(DomainValidationError, match="markdown"):
         TableBlock(page=1, bbox=_bbox(), markdown="")

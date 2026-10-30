@@ -137,12 +137,15 @@ class TextBlock:
     text: str
     font_size: float
     is_bold: bool = False
+    heading_level: int = 0
 
     def __post_init__(self) -> None:
         _require_page_number(self.page)
         _require_text(self.text, "text")
         if not isfinite(self.font_size) or self.font_size <= 0:
             raise DomainValidationError("font_size debe ser un número positivo")
+        if self.heading_level < 0:
+            raise DomainValidationError("heading_level debe ser >= 0")
 
 
 @dataclass(frozen=True, slots=True)

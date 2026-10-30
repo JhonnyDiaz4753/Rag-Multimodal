@@ -1,0 +1,104 @@
+"""Adaptador de extracción de texto, títulos e imágenes con PyMuPDF."""
+
+from __future__ import annotations
+
+import math
+import statistics
+from collections.abc import Sequence
+from dataclasses import replace
+from pathlib import Path
+from typing import Any
+
+import pymupdf
+
+from src.application.ports.document_parser import DocumentParserPort
+from src.domain.entities import (
+    BBox,
+    Document,
+    Page,
+    TextBlock,
+)
+
+_BODY_HEADING_RATIO = 1.5
+_MAX_HEADING_LEVEL = 6
+_BOLD_FLAG = 16
+
+
+class PymupdfDocumentParser(DocumentParserPort):
+    """Extrae bloques de texto con coordenadas de un PDF."""
+
+    def parse(self, pdf_path: Path, *, doc_id: str, filename: str) -> Document:
+        with pymupdf.open(str(pdf_path)) as document:
+            blocks_by_page: dict[int, list[TextBlock]] = {}
+            all_blocks: list[TextBlock] = []
+
+            for page_number, page in enumerate(document, start=1):
+                blocks = self._extract_blocks(page, page_number)
+                blocks_by_page[page_number] = blocks
+                all_blocks.extend(blocks)
+
+            body_size = self._body_size(all_blocks)
+            for page_number, blocks in blocks_by_page.items():
+                blocks_by_page[page_number] = [
+                    replace(block, heading_level=self._heading_level(block, body_size))
+                    for block in blocks
+                ]
+
+            pages = tuple(
+                Page(
+                    number=page_number,
+                    text_blocks=tuple(blocks_by_page.get(page_number, [])),
+                )
+                for page_number in range(1, document.page_count + 1)
+            )
+
+        return Document(doc_id=doc_id, filename=filename, pages=pages)
+
+    def _extract_blocks(self, page: pymupdf.Page, page_number: int) -> list[TextBlock]:
+        blocks: list[TextBlock] = []
+
+        for block in page.get_text("dict")["blocks"]:
+            if block.get("type") != 0:
+                continue
+            for line in block.get("lines", []):
+                spans = [
+                    span for span in line.get("spans", []) if str(span.get("text", "")).strip()
+                ]
+                if not spans:
+                    continue
+                bbox = line.get("bbox") or block.get("bbox")
+                blocks.append(
+                    TextBlock(
+                        page=page_number,
+                        bbox=BBox(
+                            float(bbox[0]),
+                            float(bbox[1]),
+                            float(bbox[2]),
+                            float(bbox[3]),
+                        ),
+                        text=self._line_text(line),
+                        font_size=max(float(span["size"]) for span in spans),
+                        is_bold=any(bool(span.get("flags", 0) & _BOLD_FLAG) for span in spans),
+                        heading_level=0,
+                    )
+                )
+
+        return blocks
+
+    def _line_text(self, line: dict[str, Any]) -> str:
+        return "".join(str(span.get("text", "")) for span in line.get("spans", [])).strip()
+
+    @staticmethod
+    def _body_size(blocks: Sequence[TextBlock]) -> float:
+        if not blocks:
+            return 0.0
+        return float(statistics.median([block.font_size for block in blocks]))
+
+    def _heading_level(self, block: TextBlock, body_size: float) -> int:
+        if body_size <= 0:
+            return 0
+        if block.font_size < body_size * _BODY_HEADING_RATIO and not block.is_bold:
+            return 0
+        ratio = block.font_size / body_size
+        level = int(math.ceil(math.log(ratio) / math.log(_BODY_HEADING_RATIO)))
+        return max(1, min(level, _MAX_HEADING_LEVEL))
