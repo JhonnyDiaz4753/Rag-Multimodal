@@ -28,6 +28,15 @@ Regla de dependencias:
 
 La inyección de dependencias se apoya en `FastAPI.Depends` y en el contenedor de settings. Los adaptadores externos se podrán intercambiar sin modificar el dominio.
 
+### Dominio y puertos
+
+- `backend/src/domain/entities.py`: entidades y value objects del núcleo (`Document`, `Chunk`, `BBox`, `ImageRef`, `Job`, `Answer` y el resto de value objects de apoyo: `Page`, `TextBlock`, `TableBlock`, `Source`, `RetrievedChunk`).
+- `backend/src/application/ports/`: puertos de salida, un módulo por contrato (`llm.py`, `embeddings.py`, `vector_store.py`, `document_parser.py`, `job_repository.py`, `image_storage.py`).
+
+Los puertos se aíslan con ABCs explícitos. Los puertos de red (LLM, embeddings, Qdrant) son `async`; los de CPU/filesystem (parser, imágenes) y los repositorios que consume Celery son síncronos.
+
+La pureza del dominio queda verificada en `tests/unit/test_architecture.py`: un test con `ast` inspecciona los imports y falla si el dominio usa una librería externa o si los puertos se acoplan a la infraestructura.
+
 ## Estructura
 
 ```text
