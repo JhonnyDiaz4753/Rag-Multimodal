@@ -38,3 +38,10 @@ jobs:
 
       - name: Test
         run: python -m pytest -q
+
+      - name: Validate compose
+        working-directory: .
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose --profile ollama config --quiet

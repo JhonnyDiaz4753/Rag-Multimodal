@@ -1,13 +1,19 @@
-.PHONY: up down logs install test lint fmt
+.PHONY: up up-ai down logs ps install test lint fmt
 
 up:
 	docker compose up --build
 
+up-ai:
+	docker compose --profile ollama up --build
+
 down:
-	docker compose down
+	docker compose --profile ollama down
 
 logs:
 	docker compose logs -f
+
+ps:
+	docker compose ps
 
 install:
 	cd backend && python -m pip install -r requirements-dev.txt

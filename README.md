@@ -2,7 +2,7 @@
 
 Sistema RAG para manuales técnicos en PDF (texto, tablas, diagramas e imágenes) con arquitectura hexagonal.
 
-El proyecto está construido por fases. **HU-01** deja el scaffold, la configuración por ambiente, el logging estructurado, el endpoint de salud, el worker base y el pipeline de calidad listos para las siguientes historias.
+El proyecto está construido por fases. **HU-01** deja el scaffold, la configuración por ambiente, el logging estructurado, el endpoint de salud, el worker base y el pipeline de calidad. **HU-02** añade el entorno contenerizado con healthchecks, frontend placeholder y Ollama como perfil opcional.
 
 ## Arquitectura
 
@@ -31,19 +31,24 @@ La inyección de dependencias se apoya en `FastAPI.Depends` y en el contenedor d
 ## Estructura
 
 ```text
-backend/
-├── src/
-│   ├── config/           # Settings tipados con pydantic-settings
-│   ├── domain/           # Núcleo sin dependencias de frameworks
-│   ├── application/      # Casos de uso y puertos
-│   ├── infrastructure/   # Adaptadores (logging por ahora)
-│   ├── api/              # FastAPI, middleware, rutas y DI
-│   └── workers/          # Celery
-├── tests/                # Tests unitarios
-├── Dockerfile
-├── pyproject.toml
-├── requirements.txt
-└── requirements-dev.txt
+pruebaTecnica/
+├── backend/
+│   ├── src/
+│   │   ├── config/           # Settings tipados con pydantic-settings
+│   │   ├── domain/           # Núcleo sin dependencias de frameworks
+│   │   ├── application/      # Casos de uso y puertos
+│   │   ├── infrastructure/   # Adaptadores (logging por ahora)
+│   │   ├── api/              # FastAPI, middleware, rutas y DI
+│   │   └── workers/          # Celery
+│   ├── tests/                # Tests unitarios
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   ├── requirements.txt
+│   └── requirements-dev.txt
+├── frontend/                 # Placeholder de HU-02 (nginx + HTML)
+├── docker-compose.yml
+├── .env.example
+└── Makefile
 ```
 
 ## Inicio rápido con Docker
@@ -51,10 +56,40 @@ backend/
 ```bash
 cp .env.example .env
 docker compose up --build
-curl http://localhost:8000/health
 ```
 
-La primera ejecución descarga los modelos de Ollama y puede tardar varios minutos. El endpoint `/health` es una sonda de liveness: no depende de Redis, Qdrant ni Ollama.
+Este comando levanta `api`, `worker`, `redis`, `qdrant` y `frontend`. **No arranca Ollama**, por lo que el primer arranque es rápido. Verifica:
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:3000
+```
+
+Para habilitar la IA local:
+
+```bash
+docker compose --profile ollama up --build
+```
+
+Añade `ollama` y `ollama-init`. Este último descarga `LLM_MODEL` y `EMBEDDING_MODEL` (y `VISION_MODEL` si `ENABLE_IMAGE_CAPTIONING=true`). La primera ejecución tarda varios minutos por la descarga de modelos.
+
+Sin el perfil `ollama`, la API y el frontend funcionan, pero las consultas RAG no tendrán LLM. El endpoint `/health` es una sonda de liveness: no depende de Redis, Qdrant ni Ollama.
+
+El frontend actual es un **placeholder de HU-02**; se sustituirá por la interfaz real en la historia de UI.
+
+### Healthchecks
+
+| Servicio | Comprobación |
+|---|---|
+| `redis` | `redis-cli ping` |
+| `qdrant` | Conexión TCP al puerto `6333` (la imagen no incluye `curl`/`wget`) |
+| `api` | `GET /health` |
+| `worker` | `celery inspect ping` al propio worker |
+| `frontend` | `wget` a `/` |
+| `ollama` | `ollama list` (solo con el perfil) |
+| `ollama-init` | Servicio one-shot: se valida por su código de salida 0 |
+
+`docker compose ps` debe mostrar todos los servicios de larga duración en estado `healthy`.
 
 ## Desarrollo local
 
@@ -177,6 +212,10 @@ ruff format --check src tests
 También están disponibles los atajos del `Makefile`:
 
 ```bash
+make up       # stack base
+make up-ai    # stack base + Ollama + descarga de modelos
+make ps       # estado y salud de los servicios
+make down     # detiene todo, incluido el perfil ollama
 make test
 make lint
 make fmt
@@ -190,6 +229,7 @@ make fmt
 2. `ruff check src tests`.
 3. `ruff format --check src tests`.
 4. `pytest -q`.
+5. `docker compose config` para validar el Compose base y el perfil `ollama`.
 
 ## Decisiones técnicas
 
