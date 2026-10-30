@@ -17,3 +17,6 @@ data/
 .DS_Store
 celerybeat-schedule*
 *.log
+
+# Documento local de la prueba (confidencial, no versionar)
+/Prueba Técnica - RAG Multimodal 2.pdf
