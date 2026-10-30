@@ -135,6 +135,94 @@ def test_image_only_page_produces_valid_image_chunk() -> None:
     assert chunks[0].image_ids == ("image-1",)
 
 
+def test_image_is_associated_by_vertical_distance_not_horizontal_distance() -> None:
+    image = ImageRef(
+        id="image-1",
+        doc_id="doc-1",
+        page=1,
+        bbox=BBox(200, 100, 240, 120),
+        path="image.png",
+    )
+    document = _document(
+        Page(
+            number=1,
+            text_blocks=(
+                _text("Sección cercana", 125, heading_level=1),
+                _text("Texto cercano.", 140),
+                TextBlock(
+                    page=1,
+                    bbox=BBox(200, 250, 300, 260),
+                    text="Sección lejana",
+                    font_size=16,
+                    heading_level=1,
+                ),
+                TextBlock(
+                    page=1,
+                    bbox=BBox(200, 270, 300, 280),
+                    text="Texto lejano.",
+                    font_size=12,
+                ),
+            ),
+            images=(image,),
+        )
+    )
+
+    chunks = LayoutChunker().chunk(document)
+
+    assert len(chunks) == 2
+    assert chunks[0].image_ids == ("image-1",)
+    assert chunks[1].image_ids == ()
+
+
+def test_figure_caption_chunk_is_preferred_over_nearer_chunk() -> None:
+    image = ImageRef(
+        id="image-1",
+        doc_id="doc-1",
+        page=1,
+        bbox=BBox(0, 100, 40, 120),
+        path="image.png",
+    )
+    document = _document(
+        Page(
+            number=1,
+            text_blocks=(
+                _text("Sección cercana", 125, heading_level=1),
+                _text("Texto cercano.", 140),
+                _text("Sección con figura", 250, heading_level=1),
+                _text("Figura 1. Diagrama del sistema.", 270),
+            ),
+            images=(image,),
+        )
+    )
+
+    chunks = LayoutChunker().chunk(document)
+
+    assert len(chunks) == 2
+    assert chunks[0].image_ids == ()
+    assert chunks[1].image_ids == ("image-1",)
+
+
+def test_image_is_not_associated_with_chunks_from_other_pages() -> None:
+    image = ImageRef(
+        id="image-1",
+        doc_id="doc-1",
+        page=2,
+        bbox=BBox(0, 10, 40, 30),
+        path="image.png",
+    )
+    document = _document(
+        Page(number=1, text_blocks=(_text("Otra página", 10, page=1),)),
+        Page(number=2, images=(image,)),
+    )
+
+    chunks = LayoutChunker().chunk(document)
+
+    assert [chunk.page for chunk in chunks] == [1, 2]
+    assert chunks[0].image_ids == ()
+    assert chunks[1].image_ids == ("image-1",)
+    assert chunks[1].kind is ChunkKind.IMAGE
+
+
 @pytest.mark.parametrize(
     ("max_tokens", "overlap_tokens"),
     [(0, 0), (10, -1), (10, 10)],

@@ -9,7 +9,7 @@ import pymupdf
 from src.application.ports.image_storage import ImageStoragePort
 from src.domain.entities import BBox, ImageRef
 
-_MIN_IMAGE_BYTES = 1024
+_MIN_IMAGE_PIXELS = 1024
 
 
 class PymupdfImageExtractor:
@@ -27,7 +27,8 @@ class PymupdfImageExtractor:
                     if block.get("type") != 1:
                         continue
                     data = block.get("image")
-                    if not data or len(data) < _MIN_IMAGE_BYTES:
+                    pixel_count = int(block.get("width", 0)) * int(block.get("height", 0))
+                    if not data or pixel_count < _MIN_IMAGE_PIXELS:
                         continue
                     bbox = BBox(
                         float(block["bbox"][0]),

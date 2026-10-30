@@ -18,6 +18,10 @@ from src.domain.entities import (
 )
 
 _TOKEN_PATTERN = re.compile(r"\w+|[^\w\s]", re.UNICODE)
+_FIGURE_CAPTION_PATTERN = re.compile(
+    r"\bfigura\s+(?:\d+(?:\.\d+)*|[ivxlcdm]+|[a-z])\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,17 +202,24 @@ class LayoutChunker:
 
     def _attach_images(self, document: Document, chunks: list[Chunk]) -> tuple[Chunk, ...]:
         for page in document.pages:
-            page_chunk_indices = [
-                index for index, chunk in enumerate(chunks) if chunk.page == page.number
+            page_candidates = [
+                (
+                    index,
+                    chunks[index].bboxes,
+                    bool(_FIGURE_CAPTION_PATTERN.search(chunks[index].text)),
+                )
+                for index in range(len(chunks))
+                if chunks[index].page == page.number
             ]
             for image in page.images:
-                if not page_chunk_indices:
+                if not page_candidates:
                     chunks.append(self._image_chunk(document, image, len(chunks)))
-                    page_chunk_indices.append(len(chunks) - 1)
                     continue
-                target_index = min(
-                    page_chunk_indices,
-                    key=lambda index: self._image_distance(image.bbox, chunks[index].bboxes),
+                caption_candidates = [candidate for candidate in page_candidates if candidate[2]]
+                candidates = caption_candidates or page_candidates
+                target_index, _, _ = min(
+                    candidates,
+                    key=lambda candidate: self._image_distance(image.bbox, candidate[1]),
                 )
                 target = chunks[target_index]
                 chunks[target_index] = replace(
@@ -220,16 +231,9 @@ class LayoutChunker:
 
     @staticmethod
     def _image_distance(image_bbox: BBox, chunk_bboxes: Sequence[BBox]) -> float:
-        if any(image_bbox.intersects(bbox) for bbox in chunk_bboxes):
-            return 0.0
         if not chunk_bboxes:
             return float("inf")
-        image_x = (image_bbox.x0 + image_bbox.x1) / 2
-        image_y = (image_bbox.y0 + image_bbox.y1) / 2
-        return min(
-            abs(image_x - (bbox.x0 + bbox.x1) / 2) + abs(image_y - (bbox.y0 + bbox.y1) / 2)
-            for bbox in chunk_bboxes
-        )
+        return min(image_bbox.vertical_distance(bbox) for bbox in chunk_bboxes)
 
     @staticmethod
     def _image_chunk(document: Document, image: ImageRef, index: int) -> Chunk:
