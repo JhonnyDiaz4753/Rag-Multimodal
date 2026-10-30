@@ -1,0 +1,72 @@
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 5s, retries: 10}
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    volumes: [qdrant_data:/qdrant/storage]
+    ports: ["6333:6333"]
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes: [ollama_data:/root/.ollama]
+    ports: ["11434:11434"]
+    # GPU NVIDIA (opcional): descomenta
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on: [ollama]
+    environment: {OLLAMA_HOST: "http://ollama:11434"}
+    env_file: [.env]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until ollama list >/dev/null 2>&1; do sleep 2; done
+        ollama pull $${LLM_MODEL} && ollama pull $${EMBEDDING_MODEL}
+        if [ "$${ENABLE_IMAGE_CAPTIONING}" = "true" ]; then ollama pull $${VISION_MODEL}; fi
+    restart: "no"
+
+  api:
+    build: ./backend
+    env_file: [.env]
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --no-access-log
+    volumes: [app_data:/data]
+    ports: ["8000:8000"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      redis: {condition: service_healthy}
+      qdrant: {condition: service_started}
+
+  worker:
+    build: ./backend
+    env_file: [.env]
+    command: celery -A src.workers.celery_app.celery_app worker --loglevel=INFO --concurrency=2
+    volumes: [app_data:/data]
+    depends_on:
+      redis: {condition: service_healthy}
+      qdrant: {condition: service_started}
+
+  # Se habilita en la Fase 7
+  # frontend:
+  #   build: ./frontend
+  #   ports: ["3000:80"]
+  #   depends_on: [api]
+
+volumes:
+  qdrant_data:
+  ollama_data:
+  app_data:
