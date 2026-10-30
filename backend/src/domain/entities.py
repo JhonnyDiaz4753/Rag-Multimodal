@@ -225,6 +225,17 @@ class Chunk:
         _require_text(self.text, "text")
         _require_page_number(self.page)
 
+    @property
+    def payload(self) -> dict[str, object]:
+        """Metadatos JSON serializables para el almacén vectorial."""
+        return {
+            "doc_id": self.doc_id,
+            "page": self.page,
+            "bboxes": [[bbox.x0, bbox.y0, bbox.x1, bbox.y1] for bbox in self.bboxes],
+            "heading_path": list(self.heading_path),
+            "image_ids": list(self.image_ids),
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class RetrievedChunk:

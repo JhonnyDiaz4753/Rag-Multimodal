@@ -23,6 +23,26 @@ def _write_pdf(path: Path, *, headings: bool) -> Path:
     return path
 
 
+def _write_pdf_with_table(path: Path) -> Path:
+    document = pymupdf.open()
+    page = document.new_page(width=612, height=792)
+    page.insert_text((50, 80), "Texto anterior.")
+
+    for x in (50, 200, 350):
+        page.draw_line((x, 100), (x, 160))
+    for y in (100, 130, 160):
+        page.draw_line((50, y), (350, y))
+    page.insert_text((60, 118), "Parametro")
+    page.insert_text((210, 118), "Valor")
+    page.insert_text((60, 148), "Presion | max")
+    page.insert_text((210, 148), "12 bar")
+    page.insert_text((50, 190), "Texto posterior.")
+
+    document.save(str(path))
+    document.close()
+    return path
+
+
 def test_parser_implements_document_parser_port() -> None:
     assert isinstance(PymupdfDocumentParser(), DocumentParserPort)
 
@@ -65,3 +85,20 @@ def test_parse_falls_back_to_paragraphs_without_headings(tmp_path: Path) -> None
     assert len(blocks) == 1
     assert blocks[0].text == "Parrafo de cuerpo."
     assert blocks[0].heading_level == 0
+
+
+def test_parse_extracts_tables_as_markdown_with_bbox(tmp_path: Path) -> None:
+    document = PymupdfDocumentParser().parse(
+        _write_pdf_with_table(tmp_path / "table.pdf"),
+        doc_id="d1",
+        filename="table.pdf",
+    )
+
+    page = document.pages[0]
+
+    assert len(page.tables) == 1
+    table = page.tables[0]
+    assert table.page == 1
+    assert table.bbox == BBox(50, 100, 350, 160)
+    assert table.markdown == ("| Parametro | Valor |\n| --- | --- |\n| Presion \\| max | 12 bar |")
+    assert [block.text for block in page.text_blocks] == ["Texto anterior.", "Texto posterior."]

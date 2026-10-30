@@ -37,6 +37,10 @@ Los puertos se aíslan con ABCs explícitos. Los puertos de red (LLM, embeddings
 
 La pureza del dominio queda verificada en `tests/unit/test_architecture.py`: un test con `ast` inspecciona los imports y falla si el dominio usa una librería externa o si los puertos se acoplan a la infraestructura.
 
+### Chunking por layout
+
+`backend/src/application/chunking.py` construye chunks por sección y subsección. El límite predeterminado es de 512 tokens léxicos (palabras y signos de puntuación), con hasta 32 tokens de solapamiento. Cada tabla se mantiene completa en un chunk propio, aunque exceda el límite. El texto de cada chunk incluye su `heading_path` como prefijo y `Chunk.payload` expone los metadatos de trazabilidad serializables.
+
 ## Estructura
 
 ```text
