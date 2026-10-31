@@ -14,8 +14,8 @@
  *    -> 200 { answer, sufficient_info, sources: [{file, page}],
  *             image: { url, page, file, caption? } | null }
  */
-import { getSettings, LIMITS } from "./config.js";
-import * as mock from "./mock.js";
+import { getSettings, LIMITS } from "./Config";
+import * as mock from "./Mock.js";
 
 export class ApiError extends Error {
   constructor(message, status = 0) {

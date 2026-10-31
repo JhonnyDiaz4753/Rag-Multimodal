@@ -1,90 +1,77 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RAG Multimodal</title>
-    <style>
-      :root {
-        color-scheme: dark;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      }
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Consulta de manuales técnicos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/Style.css">
+  <!-- Versiones fijas. Para uso sin internet, descárgalas a /vendor y cambia las rutas. -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
+  <script type="module" src="js/App.js"></script>
+</head>
+<body>
+  <div class="app">
 
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: #0f172a;
-        color: #e2e8f0;
-      }
+    <!-- Panel izquierdo: documentos -->
+    <aside class="rail" aria-label="Documentos">
+      <h1 class="brand">Manuales</h1>
 
-      main {
-        width: min(42rem, 90vw);
-        padding: 2.5rem;
-        border: 1px solid #334155;
-        border-radius: 1rem;
-        background: #1e293b;
-      }
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Subir un PDF">
+        <p class="dropzone-title">Subir un PDF</p>
+        <p class="dropzone-hint">Arrastra el archivo aquí o pulsa para elegirlo. Máximo 50 MB.</p>
+        <input type="file" id="file-input" accept="application/pdf,.pdf" hidden>
+      </div>
 
-      h1 {
-        margin-top: 0;
-        font-size: clamp(1.8rem, 4vw, 2.6rem);
-      }
+      <section aria-labelledby="jobs-title">
+        <h2 id="jobs-title" class="rail-title">Procesamiento</h2>
+        <ul class="jobs" id="jobs" aria-live="polite"></ul>
+        <p class="empty" id="jobs-empty">Aún no has subido documentos.</p>
+      </section>
 
-      p {
-        line-height: 1.6;
-        color: #cbd5e1;
-      }
+      <details class="conn" id="conn">
+        <summary>Conexión</summary>
+        <label class="check">
+          <input type="checkbox" id="mock-toggle">
+          <span>Modo demo (sin servidor)</span>
+        </label>
+        <label class="field">
+          <span>URL de la API</span>
+          <input type="url" id="api-base" placeholder="http://localhost:8000" spellcheck="false">
+        </label>
+      </details>
+    </aside>
 
-      code {
-        padding: 0.15rem 0.4rem;
-        border-radius: 0.35rem;
-        background: #0f172a;
-        color: #7dd3fc;
-      }
+    <!-- Panel principal: chat -->
+    <main class="chat">
+      <header class="chat-head">
+        <label class="scope">
+          <span>Buscar en</span>
+          <select id="doc-select" aria-label="Documento donde buscar">
+            <option value="">Todos los documentos</option>
+          </select>
+        </label>
+        <span class="badge" id="mock-badge" hidden>Modo demo</span>
+        <button class="btn-ghost" id="new-chat" type="button">Nueva conversación</button>
+      </header>
 
-      a {
-        color: #7dd3fc;
-      }
+      <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Conversación"></div>
 
-      .status {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 1rem;
-        padding: 0.45rem 0.8rem;
-        border-radius: 999px;
-        background: #14532d;
-        color: #bbf7d0;
-        font-size: 0.9rem;
-      }
-
-      .status::before {
-        content: "";
-        width: 0.55rem;
-        height: 0.55rem;
-        border-radius: 50%;
-        background: #4ade80;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>RAG Multimodal</h1>
-      <p>
-        El frontend está en construcción. Este servicio es el placeholder de
-        HU-02 y se sustituirá por la interfaz de chat en la historia de UI.
-      </p>
-      <p>
-        API disponible en <a href="http://localhost:8000/docs">localhost:8000/docs</a>.
-        Healthcheck en <a href="http://localhost:8000/health">/health</a>.
-      </p>
-      <span class="status">Servicio en línea</span>
-      <p>
-        Arranque completo con IA local:
-        <code>docker compose --profile ollama up --build</code>
-      </p>
+      <form class="composer" id="composer" autocomplete="off">
+        <label for="question" class="sr-only">Tu pregunta</label>
+        <textarea id="question" rows="1" placeholder="Pregunta algo sobre tus manuales…" maxlength="2000"></textarea>
+        <button class="btn-primary" id="send" type="submit">Preguntar</button>
+      </form>
     </main>
-  </body>
+  </div>
+
+  <dialog class="lightbox" id="lightbox" aria-label="Imagen ampliada">
+    <form method="dialog"><button class="lightbox-close" aria-label="Cerrar">Cerrar</button></form>
+    <img id="lightbox-img" alt="">
+    <p id="lightbox-caption"></p>
+  </dialog>
+</body>
 </html>

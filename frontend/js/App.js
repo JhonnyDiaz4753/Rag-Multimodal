@@ -1,5 +1,5 @@
-import { getSettings, saveSettings, LIMITS } from "./config.js";
-import * as api from "./api.js";
+import { getSettings, saveSettings, LIMITS } from "./Config.js";
+import * as api from "./Api.js";
 
 /* ---------- Utilidades ---------- */
 const $ = (sel, root = document) => root.querySelector(sel);
