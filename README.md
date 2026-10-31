@@ -39,7 +39,7 @@ La pureza del dominio queda verificada en `tests/unit/test_architecture.py`: un 
 
 ### Chunking por layout
 
-`backend/src/application/chunking.py` construye chunks por sección y subsección. El límite predeterminado es de 512 tokens léxicos (palabras y signos de puntuación), con hasta 32 tokens de solapamiento. Cada tabla se mantiene completa en un chunk propio, aunque exceda el límite. El texto de cada chunk incluye su `heading_path` como prefijo y `Chunk.payload` expone los metadatos de trazabilidad serializables.
+`backend/src/application/chunking.py` construye chunks por sección y subsección. El límite predeterminado es de 512 tokens léxicos (palabras y signos de puntuación), con hasta 32 tokens de solapamiento. Cada tabla se mantiene completa en un chunk propio, aunque exceda el límite. El texto de cada chunk incluye su `heading_path` como prefijo y `Chunk.payload` expone los metadatos de trazabilidad serializables. Las imágenes se asocian solo a chunks de la misma página, por distancia vertical entre bboxes; si la página contiene un pie `Figura X`, se prefiere el chunk que lo contiene.
 
 ## Estructura
 
@@ -155,20 +155,23 @@ La configuración se carga con `pydantic-settings` en este orden de prioridad:
 | `REDIS_URL` | `redis://localhost:6379/0` | Broker y backend de Celery |
 | `QDRANT_URL` | `http://localhost:6333` | URL de Qdrant |
 | `QDRANT_COLLECTION` | `manuals` | Colección vectorial |
+| `SPARSE_EMBEDDING_MODEL` | `Qdrant/bm25` | Modelo sparse FastEmbed para búsqueda léxica |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | URL de Ollama |
 | `LLM_PROVIDER` | `ollama` | `ollama` u `openai` |
 | `LLM_MODEL` | `qwen2.5:7b-instruct` | Modelo generativo |
+| `EMBEDDING_PROVIDER` | `ollama` | Proveedor de embeddings: `ollama` u `openai` |
 | `EMBEDDING_MODEL` | `bge-m3` | Modelo de embeddings |
 | `EMBEDDING_DIM` | `1024` | Dimensión de los embeddings |
 | `VISION_MODEL` | `qwen2.5vl:7b` | Modelo de visión |
 | `ENABLE_IMAGE_CAPTIONING` | `false` | Activa el captioning de imágenes |
-| `OPENAI_API_KEY` | vacío | Obligatoria si `LLM_PROVIDER=openai` |
+| `OPENAI_API_KEY` | vacío | Obligatoria si `LLM_PROVIDER=openai` o `EMBEDDING_PROVIDER=openai` |
 | `OPENAI_BASE_URL` | vacío | Base URL opcional para un proveedor compatible |
 
 Reglas de validación:
 
 - En `production`, `DEBUG` debe ser `false` y `LOG_FORMAT` debe ser `json`.
-- Si `LLM_PROVIDER=openai`, `OPENAI_API_KEY` es obligatoria.
+- Si `LLM_PROVIDER=openai` o `EMBEDDING_PROVIDER=openai`, `OPENAI_API_KEY` es obligatoria.
+- El almacén vectorial crea vectores densos (`dense`) y sparse BM25 (`sparse`) en Qdrant; los sparse se generan con FastEmbed.
 - `REDIS_URL` debe usar `redis://` o `rediss://`; las URLs HTTP deben incluir esquema y host.
 
 ## API

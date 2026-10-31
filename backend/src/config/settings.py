@@ -15,6 +15,7 @@ AppEnvironment = Literal["development", "test", "production"]
 LogFormat = Literal["json", "console"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LLMProvider = Literal["ollama", "openai"]
+EmbeddingProvider = Literal["ollama", "openai"]
 
 
 def _resolve_env_file() -> Path | None:
@@ -50,9 +51,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "manuals"
+    sparse_embedding_model: str = "Qdrant/bm25"
 
     ollama_base_url: str = "http://localhost:11434"
     llm_provider: LLMProvider = "ollama"
+    embedding_provider: EmbeddingProvider = "ollama"
     llm_model: str = "qwen2.5:7b-instruct"
     embedding_model: str = "bge-m3"
     embedding_dim: int = Field(default=1024, ge=1, le=65536)
@@ -66,6 +69,7 @@ class Settings(BaseSettings):
         "app_name",
         "app_version",
         "qdrant_collection",
+        "sparse_embedding_model",
         "llm_model",
         "embedding_model",
         "vision_model",
@@ -104,10 +108,12 @@ class Settings(BaseSettings):
             if self.log_format != "json":
                 raise ValueError("LOG_FORMAT debe ser json en production")
 
-        if self.llm_provider == "openai" and (
+        if (self.llm_provider == "openai" or self.embedding_provider == "openai") and (
             self.openai_api_key is None or not self.openai_api_key.get_secret_value().strip()
         ):
-            raise ValueError("OPENAI_API_KEY es obligatoria cuando LLM_PROVIDER=openai")
+            raise ValueError(
+                "OPENAI_API_KEY es obligatoria cuando LLM_PROVIDER o EMBEDDING_PROVIDER=openai"
+            )
 
         return self
 
