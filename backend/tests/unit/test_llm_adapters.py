@@ -9,11 +9,14 @@ import httpx
 import pytest
 
 from src.config.settings import Settings
+from src.infrastructure.embeddings._http import HTTP_TIMEOUT
 from src.infrastructure.llm import (
+    CircuitBreakerLLMAdapter,
     OllamaLLMAdapter,
     OpenAILLMAdapter,
     build_llm_adapter,
 )
+from src.infrastructure.llm.ollama_llm import OLLAMA_LLM_TIMEOUT
 
 
 def _client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.AsyncClient:
@@ -41,6 +44,13 @@ def test_ollama_generation_uses_json_schema_and_system_prompt() -> None:
 
     assert asyncio.run(run()) == '{"answer":"42"}'
     assert requests[0].url == "http://localhost:11434/api/chat"
+    assert requests[0].extensions["timeout"] == OLLAMA_LLM_TIMEOUT.as_dict()
+    assert OLLAMA_LLM_TIMEOUT.as_dict() == {
+        "connect": 5.0,
+        "read": 180.0,
+        "write": 180.0,
+        "pool": 5.0,
+    }
     payload = json.loads(requests[0].content)
     assert payload["model"] == "test-model"
     assert payload["stream"] is False
@@ -79,6 +89,7 @@ def test_openai_generation_uses_structured_output_api() -> None:
 
     assert asyncio.run(run()) == '{"answer":"42"}'
     assert requests[0].url == "https://api.openai.com/v1/chat/completions"
+    assert requests[0].extensions["timeout"] == HTTP_TIMEOUT.as_dict()
     assert requests[0].headers["Authorization"].startswith("Bearer ")
     payload = json.loads(requests[0].content)
     assert payload["model"] == "gpt-test"
@@ -138,16 +149,15 @@ def test_openai_describes_image_with_data_url() -> None:
 
 
 def test_factory_selects_configured_llm_adapter() -> None:
-    assert isinstance(
-        build_llm_adapter(Settings(_env_file=None, llm_provider="ollama")),
-        OllamaLLMAdapter,
+    ollama = build_llm_adapter(Settings(_env_file=None, llm_provider="ollama"))
+    openai = build_llm_adapter(
+        Settings(_env_file=None, llm_provider="openai", openai_api_key="test-key")
     )
-    assert isinstance(
-        build_llm_adapter(
-            Settings(_env_file=None, llm_provider="openai", openai_api_key="test-key")
-        ),
-        OpenAILLMAdapter,
-    )
+
+    assert isinstance(ollama, CircuitBreakerLLMAdapter)
+    assert isinstance(ollama.provider_adapter, OllamaLLMAdapter)
+    assert isinstance(openai, CircuitBreakerLLMAdapter)
+    assert isinstance(openai.provider_adapter, OpenAILLMAdapter)
 
 
 def test_openai_propagates_http_errors() -> None:

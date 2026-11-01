@@ -10,6 +10,9 @@ import httpx
 
 from src.application.ports.llm import LLMPort
 from src.config.settings import Settings
+from src.infrastructure.embeddings._http import _retry_http_request
+
+OLLAMA_LLM_TIMEOUT = httpx.Timeout(180.0, connect=5.0, pool=5.0)
 
 
 class OllamaLLMAdapter(LLMPort):
@@ -81,11 +84,16 @@ class OllamaLLMAdapter(LLMPort):
             raise ValueError("Ollama devolvió una descripción vacía")
         return content
 
+    @_retry_http_request
     async def _post(self, payload: dict[str, object]) -> httpx.Response:
         if self._client is not None:
-            response = await self._client.post(f"{self._base_url}/api/chat", json=payload)
+            response = await self._client.post(
+                f"{self._base_url}/api/chat",
+                json=payload,
+                timeout=OLLAMA_LLM_TIMEOUT,
+            )
         else:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=OLLAMA_LLM_TIMEOUT) as client:
                 response = await client.post(f"{self._base_url}/api/chat", json=payload)
         response.raise_for_status()
         return response

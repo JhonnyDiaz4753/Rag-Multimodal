@@ -1,13 +1,20 @@
-const KEY = "rag.settings";
+const KEY = "rag.settings.v2";
+const LEGACY_KEY = "rag.settings";
+
+const DEFAULT_API_BASE = globalThis.location?.port === "3000" ? "/api" : "http://localhost:8000";
 
 const DEFAULTS = {
-  apiBase: "http://localhost:8000", 
-  mock: true,                       
+  apiBase: DEFAULT_API_BASE,
+  mock: false,
 };
 
 export function getSettings() {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") };
+    const stored = localStorage.getItem(KEY);
+    if (stored) return { ...DEFAULTS, ...JSON.parse(stored) };
+
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || "{}");
+    return { ...DEFAULTS, apiBase: legacy.apiBase || DEFAULT_API_BASE };
   } catch {
     return { ...DEFAULTS };
   }
@@ -22,5 +29,5 @@ export function saveSettings(patch) {
 export const LIMITS = {
   maxFileMB: 50,
   historyTurns: 8,      
-  requestTimeoutMs: 60_000,
+  requestTimeoutMs: 300_000,
 };
