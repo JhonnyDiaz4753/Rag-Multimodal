@@ -8,7 +8,7 @@ import pytest
 
 from src.application.chunking import LayoutChunker
 from src.application.process_document import ProcessDocumentUseCase
-from src.domain import BBox, Document, Page, TextBlock
+from src.domain import BBox, Chunk, Document, Page, TextBlock
 from src.domain.jod import Job, JobStatus
 
 
@@ -55,16 +55,38 @@ class _Parser:
 class _Embeddings:
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error
-        self.texts: Sequence[str] = ()
+        self.batches: list[tuple[str, ...]] = []
 
     async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
-        self.texts = texts
+        self.batches.append(tuple(texts))
         if self.error:
             raise self.error
         return [[0.1, 0.2] for _ in texts]
 
+    @property
+    def texts(self) -> tuple[str, ...]:
+        return tuple(text for batch in self.batches for text in batch)
+
     async def embed_query(self, text: str) -> list[float]:
         raise NotImplementedError
+
+
+class _ManyChunks:
+    def __init__(self, count: int) -> None:
+        self.count = count
+
+    def chunk(self, document: Document) -> tuple[Chunk, ...]:
+        return tuple(
+            Chunk(
+                id=f"{document.doc_id}:{index}",
+                doc_id=document.doc_id,
+                filename=document.filename,
+                text=f"Chunk {index}",
+                page=1,
+                bboxes=(BBox(0, index, 100, index + 1),),
+            )
+            for index in range(self.count)
+        )
 
 
 class _VectorStore:
@@ -109,16 +131,44 @@ async def test_pipeline_updates_progress_for_each_stage_and_completes() -> None:
         ("parsing", 0),
         ("chunking", 25),
         ("embedding", 50),
+        ("embedding", 74),
         ("indexing", 75),
         ("completed", 100),
     ]
     assert jobs.saved[-1].status is JobStatus.COMPLETED
     assert jobs.saved[-1].error is None
     assert parser.arguments == (Path("uploads/manual.pdf"), "doc-1", "manual.pdf")
-    assert embeddings.texts == ["Contenido del manual."]
+    assert embeddings.texts == ("Contenido del manual.",)
     assert vector_store.collection_created
     assert vector_store.upserted is not None
     assert len(vector_store.upserted[0]) == len(vector_store.upserted[1]) == 1
+
+
+@pytest.mark.asyncio
+async def test_pipeline_batches_embeddings_and_updates_progress() -> None:
+    job = Job(id="job-1", document_id="doc-1", filename="manual.pdf")
+    jobs = _Jobs(job)
+    embeddings = _Embeddings()
+    vector_store = _VectorStore()
+    use_case = ProcessDocumentUseCase(
+        jobs=jobs,
+        parser=_Parser(),
+        chunker=_ManyChunks(19),
+        embeddings=embeddings,
+        vector_store=vector_store,
+    )
+
+    await use_case.execute("job-1", "doc-1", "uploads/manual.pdf")
+
+    assert [len(batch) for batch in embeddings.batches] == [8, 8, 3]
+    assert [saved.progress for saved in jobs.saved if saved.stage == "embedding"] == [
+        50,
+        60,
+        70,
+        74,
+    ]
+    assert vector_store.upserted is not None
+    assert len(vector_store.upserted[0]) == len(vector_store.upserted[1]) == 19
 
 
 @pytest.mark.asyncio
