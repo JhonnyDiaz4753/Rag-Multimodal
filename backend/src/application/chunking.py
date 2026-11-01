@@ -59,14 +59,15 @@ class LayoutChunker:
                     heading_stack.append((item.text, item.bbox))
                 elif isinstance(item, TableBlock):
                     self._flush_section(document, page, section_spans, heading_stack, chunks)
+                    heading_path = tuple(title for title, _ in heading_stack)
                     chunks.append(
                         self._make_chunk(
                             document,
                             page.number,
                             len(chunks),
-                            self._with_heading_path(item.markdown, heading_stack),
+                            self._with_heading_path(item.markdown, heading_path),
                             tuple(bbox for _, bbox in heading_stack) + (item.bbox,),
-                            tuple(title for title, _ in heading_stack),
+                            heading_path,
                             kind=ChunkKind.TABLE,
                         )
                     )

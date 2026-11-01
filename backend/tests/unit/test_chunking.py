@@ -117,6 +117,23 @@ def test_tables_are_atomic_and_payload_keeps_layout_and_images() -> None:
     }
 
 
+def test_table_chunk_includes_heading_path() -> None:
+    table = TableBlock(page=1, bbox=BBox(0, 20, 100, 40), markdown="| A | B |")
+    document = _document(
+        Page(
+            number=1,
+            text_blocks=(_text("Especificaciones", 0, heading_level=1),),
+            tables=(table,),
+        )
+    )
+
+    (chunk,) = LayoutChunker().chunk(document)
+
+    assert chunk.heading_path == ("Especificaciones",)
+    assert chunk.text == "Especificaciones\n\n| A | B |"
+    assert chunk.bboxes == (BBox(0, 0, 100, 10), table.bbox)
+
+
 def test_image_only_page_produces_valid_image_chunk() -> None:
     image = ImageRef(
         id="image-1",
