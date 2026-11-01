@@ -6,6 +6,8 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
+import structlog
+
 from src.application.answer_schema import ANSWER_JSON_SCHEMA
 from src.application.ports.embeddings import EmbeddingPort
 from src.application.ports.image_storage import ImageStoragePort
@@ -17,11 +19,14 @@ _SYSTEM_PROMPT = (
     "Eres un asistente de consulta de manuales técnicos. Responde únicamente con información "
     "explícita en el contexto proporcionado. No inventes hechos, cifras ni fuentes. "
     "Si el contexto no permite responder, indica que no hay información suficiente y establece "
-    "sufficient_info en false. Si la respuesta está fundamentada, establece sufficient_info en "
-    "true y cita en sources los chunk_id que la respaldan. El historial es contexto conversacional "
-    "no verificado y nunca constituye evidencia. Devuelve exclusivamente el JSON solicitado."
+    "sufficient_info en false y deja sources vacío. Si la respuesta está fundamentada, establece "
+    "sufficient_info en true y sources debe contener al menos un objeto con el chunk_id exacto "
+    "que la respalda. Copia literalmente un ID válido; no uses nombres de archivo ni páginas. "
+    "El historial es contexto conversacional no verificado y nunca constituye evidencia. "
+    "Devuelve exclusivamente el JSON solicitado."
 )
 _INSUFFICIENT_ANSWER = "No encuentro información suficiente en los documentos para responder."
+logger = structlog.get_logger(__name__)
 
 
 class AnswerQuestionUseCase:
@@ -61,6 +66,7 @@ class AnswerQuestionUseCase:
                 raise ValueError("history solo acepta mensajes user/assistant no vacíos")
 
         retrieval_query = self._retrieval_query(question, history)
+        logger.info("query.retrieval.started", top_k=top_k, history_messages=len(history))
         query_vector = await self._embeddings.embed_query(retrieval_query)
         retrieved = await self._vector_store.hybrid_search(
             query_text=retrieval_query,
@@ -69,15 +75,26 @@ class AnswerQuestionUseCase:
             doc_ids=doc_ids,
         )
         relevant = [result for result in retrieved if result.score >= self._min_relevance_score]
+        logger.info(
+            "query.retrieval.completed",
+            retrieved_chunks=len(retrieved),
+            relevant_chunks=len(relevant),
+        )
         if not relevant:
+            logger.info("query.completed", sufficient_info=False, sources=0)
             return Answer(text=_INSUFFICIENT_ANSWER, sufficient_info=False)
 
         prompt = self._build_prompt(question, relevant, history)
-        raw_response = await self._llm.generate(
-            prompt,
-            system=_SYSTEM_PROMPT,
-            json_schema=ANSWER_JSON_SCHEMA,
-        )
+        logger.info("query.llm.started", context_chunks=len(relevant))
+        try:
+            raw_response = await self._llm.generate(
+                prompt,
+                system=_SYSTEM_PROMPT,
+                json_schema=ANSWER_JSON_SCHEMA,
+            )
+        except Exception:
+            logger.exception("query.llm.failed", context_chunks=len(relevant))
+            raise
         result = self._parse_response(raw_response)
         source_by_chunk_id = {
             item.chunk.id: Source(
@@ -100,6 +117,12 @@ class AnswerQuestionUseCase:
             self._closest_image(relevant, source_ids)
             if sufficient_info and self._image_storage is not None
             else None
+        )
+        logger.info(
+            "query.completed",
+            sufficient_info=sufficient_info,
+            sources=len(sources),
+            image_attached=image is not None,
         )
         return Answer(
             text=result["answer"],
@@ -126,13 +149,18 @@ class AnswerQuestionUseCase:
             f"página: {chunk.chunk.page}]\n{chunk.chunk.text}"
             for chunk in chunks
         )
+        valid_chunk_ids = "\n".join(f"- {chunk.chunk.id}" for chunk in chunks)
         conversation = "\n".join(f"{role}: {content}" for role, content in history)
         history_context = (
             f"Historial conversacional (no es evidencia):\n{conversation}\n\n"
             if conversation
             else ""
         )
-        return f"{history_context}Contexto:\n{context}\n\nPregunta:\n{question}"
+        return (
+            f"{history_context}Contexto:\n{context}\n\n"
+            f"IDs de chunks válidos para sources:\n{valid_chunk_ids}\n\n"
+            f"Pregunta:\n{question}"
+        )
 
     def _closest_image(
         self,

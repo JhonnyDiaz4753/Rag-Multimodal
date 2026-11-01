@@ -117,6 +117,7 @@ async def test_query_returns_structured_answer_with_only_retrieved_citations() -
     assert vector_store.calls[0]["doc_ids"] == ["doc-1"]
     prompt = llm.calls[0]["prompt"]
     assert "[chunk_id: chunk-1 | fuente: manual.pdf, página: 2]" in prompt
+    assert "IDs de chunks válidos para sources:\n- chunk-1" in prompt
     assert "La presión nominal es 10 bar." in prompt
     assert llm.calls[0]["system"]
     assert llm.calls[0]["json_schema"]["required"] == ["answer", "sufficient_info", "sources"]
