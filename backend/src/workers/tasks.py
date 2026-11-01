@@ -2,7 +2,9 @@
 
 import asyncio
 
+from celery import current_task
 from redis.asyncio import Redis
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from src.application.chunking import LayoutChunker
 from src.application.process_document import ProcessDocumentUseCase
@@ -15,11 +17,25 @@ from src.infrastructure.vector_stores import build_vector_store
 from src.workers.celery_app import celery_app
 
 
-async def _process_document(job_id: str, document_id: str, path: str) -> None:
-    settings = get_settings()
-    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+async def _process_document(
+    job_id: str,
+    document_id: str,
+    path: str,
+    *,
+    request_id: str | None = None,
+) -> None:
+    clear_contextvars()
+    bind_contextvars(request_id=request_id or job_id, job_id=job_id)
+    redis: Redis | None = None
     vector_store = None
     try:
+        settings = get_settings()
+        redis = Redis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
         vector_store = build_vector_store(settings)
         use_case = ProcessDocumentUseCase(
             jobs=RedisJobRepo(redis, settings.job_ttl_seconds),
@@ -34,13 +50,24 @@ async def _process_document(job_id: str, document_id: str, path: str) -> None:
             if vector_store is not None:
                 await vector_store.close()
         finally:
-            await redis.aclose()
+            try:
+                if redis is not None:
+                    await redis.aclose()
+            finally:
+                clear_contextvars()
 
 
 @celery_app.task(name="src.workers.tasks.process_document")
 def process_document_task(job_id: str, document_id: str, path: str) -> None:
     """Ejecuta el pipeline síncrono de Celery sobre el caso de uso asíncrono."""
-    asyncio.run(_process_document(job_id, document_id, path))
+    asyncio.run(
+        _process_document(
+            job_id,
+            document_id,
+            path,
+            request_id=getattr(current_task.request, "id", None),
+        )
+    )
 
 
 __all__ = ["celery_app", "process_document_task"]

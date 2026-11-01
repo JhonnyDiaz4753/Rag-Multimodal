@@ -1,12 +1,13 @@
-import logging
 import uuid
 from dataclasses import dataclass
+
+import structlog
 
 from src.domain.errors import EmptyFileError, FileTooLargeError, InvalidFileTypeError
 from src.domain.jod import Job, JobStatus
 from src.domain.ports import DocumentStoragePort, JobRepoPort, TaskDispatcherPort
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 PDF_MAGIC = b"%PDF-"
 ALLOWED_CONTENT_TYPES = {"application/pdf", "application/x-pdf"}
@@ -60,15 +61,17 @@ class UploadDocumentUseCase:
 
         try:
             await self._dispatcher.dispatch_ingestion(job_id, document_id, path)
-        except Exception as exc:  # cola caída, broker no disponible...
-            logger.exception("No se pudo encolar el job", extra={"job_id": job_id})
+        except Exception:
+            logger.exception("document.upload.dispatch_failed", job_id=job_id)
             job.status = JobStatus.FAILED
             job.error = "No se pudo encolar el procesamiento."
             await self._jobs.save(job)
             raise
 
         logger.info(
-            "Documento recibido",
-            extra={"job_id": job_id, "document_id": document_id, "upload_filename": filename},
+            "document.upload.accepted",
+            job_id=job_id,
+            document_id=document_id,
+            filename=filename,
         )
         return UploadResult(job_id=job_id, document_id=document_id)
