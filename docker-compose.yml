@@ -37,8 +37,15 @@ services:
     image: ollama/ollama:latest
     depends_on:
       ollama: {condition: service_healthy}
-    environment: {OLLAMA_HOST: "http://ollama:11434"}
-    env_file: [.env]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:7b-instruct}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
+      VISION_MODEL: ${VISION_MODEL:-qwen2.5vl:7b}
+      ENABLE_IMAGE_CAPTIONING: ${ENABLE_IMAGE_CAPTIONING:-false}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -49,10 +56,15 @@ services:
 
   api:
     build: ./backend
-    env_file: [.env]
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATA_DIR: /data
       UPLOAD_DIR: /data/uploads
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --no-access-log
     volumes: [app_data:/data]
     ports: ["8000:8000"]
@@ -72,10 +84,15 @@ services:
 
   worker:
     build: ./backend
-    env_file: [.env]
+    env_file:
+      - path: .env
+        required: false
     environment:
       DATA_DIR: /data
       UPLOAD_DIR: /data/uploads
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
     command: celery -A src.workers.celery_app.celery_app worker --loglevel=INFO --concurrency=2
     volumes: [app_data:/data]
     healthcheck:

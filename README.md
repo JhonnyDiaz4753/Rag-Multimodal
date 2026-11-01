@@ -82,30 +82,21 @@ pruebaTecnica/
 
 ## Inicio rápido con Docker
 
-En un clon limpio, `make up` crea `.env` a partir de `.env.example` si no existe y levanta el stack base:
+En un clon limpio, el stack base se levanta con un solo comando:
 
 ```bash
-make up
-```
-
-Equivale a:
-
-```bash
-cp .env.example .env
 docker compose up --build
 ```
+
+`.env` es opcional: Compose aplica valores por defecto para las URLs internas y los modelos. Si quieres personalizar proveedores, modelos o límites, copia `.env.example` a `.env` antes de arrancar; también puedes usar `make up`, que crea `.env` si no existe.
 
 El stack base levanta `api`, `worker`, `redis`, `qdrant` y `frontend`. Es rápido y sirve para validar health/UI, pero **no incluye Ollama**: sin proveedor de embeddings/LLM, la ingesta y las consultas RAG fallan. Para el flujo completo:
 
 ```bash
-make up-full
-```
-
-o, sin Make:
-
-```bash
 docker compose --profile ollama up --build
 ```
+
+o `make up-full` (alias: `make up-ai`).
 
 Esto añade `ollama` y `ollama-init`; este último descarga `LLM_MODEL`, `EMBEDDING_MODEL` y, si aplica, `VISION_MODEL`. La primera ejecución tarda varios minutos por la descarga de modelos.
 
