@@ -41,6 +41,20 @@ La pureza del dominio queda verificada en `tests/unit/test_architecture.py`: un 
 
 `backend/src/application/chunking.py` construye chunks por sección y subsección. El límite predeterminado es de 512 tokens léxicos (palabras y signos de puntuación), con hasta 32 tokens de solapamiento. Cada tabla se mantiene completa en un chunk propio, aunque exceda el límite. El texto de cada chunk incluye su `heading_path` como prefijo y `Chunk.payload` expone los metadatos de trazabilidad serializables. Las imágenes se asocian solo a chunks de la misma página, por distancia vertical entre bboxes; si la página contiene un pie `Figura X`, se prefiere el chunk que lo contiene.
 
+### Pipeline de ingesta en segundo plano
+
+`POST /documents` encola `process_document_task` en Celery y devuelve sin ejecutar el pipeline pesado en la API. El worker procesa cada PDF en las etapas `parsing`, `chunking`, `embedding` e `indexing`. Los embeddings se generan en lotes de hasta 8 chunks; durante esa etapa Redis actualiza el progreso de 50 a 74 % para que documentos grandes no dependan de una única petición extensa al proveedor. Al indexar, el progreso pasa a 75 % y termina en 100 %. Si falla una etapa, el job queda en estado `failed` con el tipo y el motivo del error.
+
+`GET /jobs/{job_id}` consulta en Redis el estado, la etapa y el porcentaje de avance de una tarea; devuelve `404` cuando el job no existe.
+
+`POST /query` recibe `question`, `top_k` opcional y `doc_ids` opcional. Recupera contexto con búsqueda híbrida, devuelve `{answer, sufficient_info, sources[]}` y solo permite citar chunks realmente recuperados. Si no hay chunks que superen `MIN_RELEVANCE_SCORE`, responde que no hay información suficiente sin invocar el LLM. El proveedor de generación se selecciona con `LLM_PROVIDER` (`ollama` u `openai`).
+
+`POST /ask` acepta `question`, un `history` opcional de hasta 20 mensajes `user`/`assistant`, `top_k` y `doc_ids`. Devuelve `{answer, sources:[{file, page}], image?}`; si un chunk citado tiene una imagen asociada, devuelve la imagen más cercana al texto como data URI base64. El historial ayuda a interpretar seguimientos, pero no se considera evidencia para responder.
+
+Las llamadas HTTP a embeddings y OpenAI tienen timeout explícito (5 s de conexión y 30 s de lectura/escritura); la generación con Ollama permite hasta 180 s para inferencia local. Todas reintentan hasta tres veces ante HTTP 429, HTTP 5xx o timeouts, con backoff exponencial y jitter. El proxy y el cliente web permiten hasta 300 s para completar una respuesta local. Otros errores HTTP no se reintentan. Qdrant y Redis también tienen timeouts de red explícitos.
+
+El adaptador LLM usa un circuit breaker por proveedor/modelo: se abre tras cinco fallos transitorios consecutivos, rechaza llamadas durante 30 s y luego permite un único sondeo de recuperación. Los logs de consultas y reintentos heredan el `request_id` de la API; el worker propaga el ID de tarea como `request_id` y añade `job_id` a los eventos de ingesta.
+
 ## Estructura
 
 ```text
@@ -58,7 +72,7 @@ pruebaTecnica/
 │   ├── pyproject.toml
 │   ├── requirements.txt
 │   └── requirements-dev.txt
-├── frontend/                 # Placeholder de HU-02 (nginx + HTML)
+├── frontend/                 # UI de consulta, carga de PDFs y progreso de jobs
 ├── docker-compose.yml
 ├── .env.example
 └── Makefile
@@ -78,6 +92,8 @@ curl http://localhost:8000/health
 curl http://localhost:3000
 ```
 
+La API y el worker comparten el volumen `app_data` en `/data`; Docker Compose fija `DATA_DIR` y `UPLOAD_DIR` a rutas absolutas en ese volumen para que los archivos subidos e imágenes estén disponibles en ambos contenedores.
+
 Para habilitar la IA local:
 
 ```bash
@@ -88,7 +104,7 @@ Añade `ollama` y `ollama-init`. Este último descarga `LLM_MODEL` y `EMBEDDING_
 
 Sin el perfil `ollama`, la API y el frontend funcionan, pero las consultas RAG no tendrán LLM. El endpoint `/health` es una sonda de liveness: no depende de Redis, Qdrant ni Ollama.
 
-El frontend actual es un **placeholder de HU-02**; se sustituirá por la interfaz real en la historia de UI.
+Para ejecutar el frontend fuera de Docker, sirve el directorio `frontend` con un servidor estático y configura la URL de API en **Conexión** como `http://localhost:8000`. Si el navegador bloquea solicitudes por CORS, sirve la UI con Nginx/Docker Compose, que proxyfica `/api` al backend.
 
 ### Healthchecks
 
@@ -101,6 +117,8 @@ El frontend actual es un **placeholder de HU-02**; se sustituirá por la interfa
 | `frontend` | `wget` a `/` |
 | `ollama` | `ollama list` (solo con el perfil) |
 | `ollama-init` | Servicio one-shot: se valida por su código de salida 0 |
+
+Abre <http://localhost:3000> para probar la UI conectada al backend. El modo demo está desactivado por defecto; en Docker la interfaz usa el proxy `/api` de Nginx y envía el historial, filtro por documento e imagen al endpoint `/ask`. En **Conexión** puedes cambiar la URL de API o activar el modo demo. La lista de documentos conserva el `document_id` devuelto al subir el PDF para filtrar consultas correctamente.
 
 `docker compose ps` debe mostrar todos los servicios de larga duración en estado `healthy`.
 
@@ -152,9 +170,13 @@ La configuración se carga con `pydantic-settings` en este orden de prioridad:
 | `LOG_LEVEL` | `INFO` | Nivel de logging |
 | `LOG_FORMAT` | `json` | `json` o `console` |
 | `DATA_DIR` | `./data` (ejemplo: `/data`) | Directorio de datos |
+| `UPLOAD_DIR` | `./data/uploads` | Directorio de PDFs subidos |
+| `MAX_UPLOAD_MB` | `50` | Tamaño máximo del PDF recibido |
+| `JOB_TTL_SECONDS` | `86400` | Tiempo de retención de jobs en Redis |
 | `REDIS_URL` | `redis://localhost:6379/0` | Broker y backend de Celery |
 | `QDRANT_URL` | `http://localhost:6333` | URL de Qdrant |
 | `QDRANT_COLLECTION` | `manuals` | Colección vectorial |
+| `MIN_RELEVANCE_SCORE` | `0.01` | Umbral mínimo del score RRF para devolver resultados (0–1) |
 | `SPARSE_EMBEDDING_MODEL` | `Qdrant/bm25` | Modelo sparse FastEmbed para búsqueda léxica |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | URL de Ollama |
 | `LLM_PROVIDER` | `ollama` | `ollama` u `openai` |
@@ -172,6 +194,7 @@ Reglas de validación:
 - En `production`, `DEBUG` debe ser `false` y `LOG_FORMAT` debe ser `json`.
 - Si `LLM_PROVIDER=openai` o `EMBEDDING_PROVIDER=openai`, `OPENAI_API_KEY` es obligatoria.
 - El almacén vectorial crea vectores densos (`dense`) y sparse BM25 (`sparse`) en Qdrant; los sparse se generan con FastEmbed.
+- La búsqueda híbrida fusiona ambos rankings mediante RRF y descarta resultados por debajo de `MIN_RELEVANCE_SCORE`; los chunks recuperados conservan sus `image_ids`.
 - `REDIS_URL` debe usar `redis://` o `rediss://`; las URLs HTTP deben incluir esquema y host.
 
 ## API

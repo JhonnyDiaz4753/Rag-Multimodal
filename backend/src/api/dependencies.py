@@ -25,7 +25,12 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 @lru_cache
 def get_redis() -> Redis:
-    return Redis.from_url(get_settings().redis_url, decode_responses=True)
+    return Redis.from_url(
+        get_settings().redis_url,
+        decode_responses=True,
+        socket_connect_timeout=5,
+        socket_timeout=5,
+    )
 
 
 def get_upload_use_case(settings: SettingsDep) -> UploadDocumentUseCase:
