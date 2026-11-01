@@ -1,3 +1,5 @@
+"""Tests de la configuración de Celery y del despachador de tareas."""
+
 import asyncio
 import threading
 

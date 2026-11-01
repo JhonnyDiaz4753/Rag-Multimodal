@@ -1,3 +1,5 @@
+"""Tests de validación y caché de la configuración."""
+
 import pytest
 from pydantic import ValidationError
 

@@ -1,3 +1,5 @@
+"""Tests de la ruta de consulta de estado de jobs."""
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient

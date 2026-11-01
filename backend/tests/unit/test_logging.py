@@ -1,3 +1,5 @@
+"""Tests de la configuración de logging JSON y consola."""
+
 import json
 
 import pytest

@@ -1,3 +1,5 @@
+"""Middleware HTTP para propagar el request_id y registrar accesos."""
+
 from __future__ import annotations
 
 import re

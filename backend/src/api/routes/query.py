@@ -1,3 +1,5 @@
+"""Ruta /query: consulta directa a los manuales indexados."""
+
 from __future__ import annotations
 
 from typing import Annotated

@@ -1,3 +1,5 @@
+"""Inyección de dependencias de la API: casos de uso, repositorios y adaptadores."""
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

@@ -1,3 +1,5 @@
+"""Ruta /jobs/{job_id}: consulta del estado de una ingesta."""
+
 from __future__ import annotations
 
 from typing import Annotated

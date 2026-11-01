@@ -1,3 +1,5 @@
+"""Repositorio de jobs sobre Redis con serialización JSON y TTL."""
+
 import json
 from dataclasses import asdict
 from datetime import datetime

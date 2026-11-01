@@ -1,3 +1,5 @@
+"""Dobles de prueba para repositorios, almacenamiento y despachadores."""
+
 from src.domain.jod import Job
 
 

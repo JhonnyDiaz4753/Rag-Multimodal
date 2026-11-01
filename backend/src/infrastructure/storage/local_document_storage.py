@@ -1,3 +1,5 @@
+"""Almacenamiento local de PDFs en disco, aislado por document_id."""
+
 import asyncio
 from pathlib import Path
 

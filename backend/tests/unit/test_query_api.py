@@ -1,3 +1,5 @@
+"""Tests de las rutas /query y /ask."""
+
 from __future__ import annotations
 
 import base64

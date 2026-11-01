@@ -1,3 +1,5 @@
+"""Caso de uso de subida de PDF: valida el archivo y encola su procesamiento."""
+
 import uuid
 from dataclasses import dataclass
 

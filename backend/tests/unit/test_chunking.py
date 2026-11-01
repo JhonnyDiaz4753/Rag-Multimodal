@@ -1,3 +1,5 @@
+"""Tests del chunking por layout: secciones, tablas e imágenes."""
+
 from __future__ import annotations
 
 import pytest

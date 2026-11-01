@@ -1,3 +1,5 @@
+"""Configuración tipada del backend, validada desde variables de entorno y .env."""
+
 from __future__ import annotations
 
 from functools import lru_cache

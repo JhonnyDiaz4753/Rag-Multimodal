@@ -1,3 +1,5 @@
+"""Fixtures compartidas de configuración y cliente HTTP para los tests."""
+
 from collections.abc import Iterator
 
 import pytest

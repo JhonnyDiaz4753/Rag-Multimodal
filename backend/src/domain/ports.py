@@ -1,3 +1,5 @@
+"""Puertos de dominio para jobs, almacenamiento de documentos y despacho de tareas."""
+
 from typing import Protocol
 
 from src.domain.jod import Job

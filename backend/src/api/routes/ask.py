@@ -1,3 +1,5 @@
+"""Ruta /ask: respuesta conversacional con fuentes e imagen opcional."""
+
 from __future__ import annotations
 
 import base64

@@ -1,3 +1,5 @@
+"""Construcción de la aplicación FastAPI, manejo de errores y registro de rutas."""
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator

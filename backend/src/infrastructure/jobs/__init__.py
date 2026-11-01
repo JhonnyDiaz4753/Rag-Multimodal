@@ -1,1 +1,1 @@
-"""Adaptadores de infraestructura: parseo de documentos."""
+"""Adaptadores de infraestructura: persistencia de jobs de ingesta."""

@@ -1,3 +1,5 @@
+"""Ruta /health: liveness probe con metadatos del servicio."""
+
 from __future__ import annotations
 
 from typing import Literal

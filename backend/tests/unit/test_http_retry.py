@@ -1,3 +1,5 @@
+"""Tests del reintento HTTP con backoff para embeddings y LLM."""
+
 from __future__ import annotations
 
 import asyncio

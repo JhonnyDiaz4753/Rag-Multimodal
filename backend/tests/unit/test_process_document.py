@@ -1,3 +1,5 @@
+"""Tests del pipeline de ingesta y su progreso persistido."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

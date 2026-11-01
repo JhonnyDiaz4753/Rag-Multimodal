@@ -1,3 +1,5 @@
+"""Ruta /documents: subida de PDF con validación y encolado del procesamiento."""
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from src.api.dependencies import get_upload_use_case
@@ -8,7 +10,7 @@ from src.domain.errors import EmptyFileError, FileTooLargeError, InvalidFileType
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-CHUNK_SIZE = 1024 * 1024  # 1 MB
+CHUNK_SIZE = 1024 * 1024
 
 
 async def _read_limited(file: UploadFile, max_bytes: int) -> bytes:

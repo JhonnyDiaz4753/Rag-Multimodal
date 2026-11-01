@@ -1,3 +1,5 @@
+"""Tests de los adaptadores de embeddings de Ollama y OpenAI."""
+
 from __future__ import annotations
 
 import asyncio

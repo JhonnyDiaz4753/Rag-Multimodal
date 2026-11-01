@@ -1,3 +1,5 @@
+"""Tests de /health, request_id y exposición de documentación."""
+
 from fastapi.testclient import TestClient
 
 from src.api.app import create_app

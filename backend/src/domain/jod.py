@@ -1,3 +1,5 @@
+"""Estado y ciclo de vida de una ingesta (Job y JobStatus)."""
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum

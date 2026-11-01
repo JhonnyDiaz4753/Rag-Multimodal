@@ -1,3 +1,5 @@
+"""Tests del circuit breaker de los adaptadores LLM."""
+
 from __future__ import annotations
 
 import asyncio

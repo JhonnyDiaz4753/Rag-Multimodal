@@ -1,3 +1,5 @@
+"""Tests de las respuestas HTTP ante fallos del proveedor de IA."""
+
 from __future__ import annotations
 
 import httpx

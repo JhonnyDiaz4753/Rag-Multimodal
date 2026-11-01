@@ -1,3 +1,5 @@
+"""Esquemas Pydantic de entrada y salida de la API."""
+
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints

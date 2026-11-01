@@ -1,3 +1,5 @@
+"""Tests del almacén Qdrant y de la búsqueda híbrida densa/sparse."""
+
 from __future__ import annotations
 
 import asyncio

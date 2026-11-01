@@ -1,3 +1,5 @@
+"""Configuración de logging estructurado para API, workers y librerías externas."""
+
 from __future__ import annotations
 
 import logging

@@ -1,3 +1,5 @@
+"""Despachador de tareas no-op para entornos sin Celery."""
+
 import logging
 
 logger = logging.getLogger(__name__)

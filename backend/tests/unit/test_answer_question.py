@@ -1,3 +1,5 @@
+"""Tests del caso de uso de respuesta: recuperación, citas e imágenes."""
+
 from __future__ import annotations
 
 import json
