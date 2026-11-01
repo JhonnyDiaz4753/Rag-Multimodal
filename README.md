@@ -8,15 +8,23 @@ El proyecto está construido por fases. **HU-01** deja el scaffold, la configura
 
 ```mermaid
 flowchart LR
-    UI[Frontend] --> API[API FastAPI]
-    WORKERS[Workers Celery] --> APP[Casos de uso]
-    API --> APP
-    APP --> DOMAIN[Dominio]
-    APP --> PORTS{{Puertos}}
-    PORTS -.-> INFRA[Adaptadores]
-    INFRA --> REDIS[(Redis)]
-    INFRA --> QDRANT[(Qdrant)]
-    INFRA --> LLM[Ollama / OpenAI]
+    UI[Frontend] --> PROXY[Proxy Nginx]
+    PROXY --> API[API FastAPI]
+
+    API --> UC[Casos de uso]
+    WORKER[Worker Celery] --> UC
+
+    UC --> DOMAIN[Dominio]
+    UC --> PORTS{{Puertos de salida}}
+    INFRA[Adaptadores de infraestructura] -. implementa .-> PORTS
+
+    INFRA --> REDIS[(Redis<br/>cola Celery y estado de jobs)]
+    REDIS --> WORKER
+    INFRA --> QDRANT[(Qdrant<br/>vectores densos y sparse)]
+    INFRA --> AI[Ollama / OpenAI<br/>LLM y embeddings]
+    INFRA --> STORAGE[(Volumen compartido<br/>PDFs e imágenes)]
+
+    INFRA -. BM25 sparse .-> QDRANT
 ```
 
 Regla de dependencias:
