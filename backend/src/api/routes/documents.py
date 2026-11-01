@@ -45,11 +45,11 @@ async def upload_document(
             content=content,
         )
     except InvalidFileTypeError as e:
-        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, str(e))
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, str(e)) from e
     except FileTooLargeError as e:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(e))
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(e)) from e
     except EmptyFileError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
     return UploadResponse(
         job_id=result.job_id,

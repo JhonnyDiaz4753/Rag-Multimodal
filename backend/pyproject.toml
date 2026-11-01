@@ -17,6 +17,9 @@ ignore = ["E501"]
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
@@ -27,3 +30,4 @@ minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra --strict-markers"
+asyncio_default_fixture_loop_scope = "function"

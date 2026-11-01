@@ -18,6 +18,7 @@ class DomainValidationError(DomainError, ValueError):
 class InvalidJobTransitionError(DomainError, ValueError):
     """Se intentó una transición de estado no permitida para un ``Job``."""
 
+
 class InvalidFileTypeError(DomainError):
     """El archivo no es un PDF válido."""
 

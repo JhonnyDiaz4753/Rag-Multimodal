@@ -33,7 +33,11 @@ def test_ollama_generation_uses_json_schema_and_system_prompt() -> None:
     async def run() -> str:
         async with _client(handler) as client:
             adapter = OllamaLLMAdapter(
-                Settings(_env_file=None, llm_model="test-model"),
+                Settings(
+                    _env_file=None,
+                    llm_model="test-model",
+                    ollama_base_url="http://localhost:11434",
+                ),
                 client=client,
             )
             return await adapter.generate(

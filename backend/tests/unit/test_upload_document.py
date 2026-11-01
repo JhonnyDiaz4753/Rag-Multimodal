@@ -1,9 +1,9 @@
 import pytest
+from tests.unit.fakes import FakeDispatcher, FakeJobRepo, FakeStorage
 
 from src.application.upload_document import UploadDocumentUseCase
 from src.domain.errors import EmptyFileError, FileTooLargeError, InvalidFileTypeError
 from src.domain.jod import JobStatus
-from tests.unit.fakes import FakeDispatcher, FakeJobRepo, FakeStorage
 
 VALID_PDF = b"%PDF-1.7\n%fake content"
 

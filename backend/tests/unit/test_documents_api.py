@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
+from tests.unit.fakes import FakeDispatcher, FakeJobRepo, FakeStorage
 
 from src.api.dependencies import get_upload_use_case
 from src.api.main import app
 from src.application.upload_document import UploadDocumentUseCase
 
-from tests.unit.fakes import FakeDispatcher, FakeJobRepo, FakeStorage
 VALID_PDF = b"%PDF-1.7\n%fake"
 
 
