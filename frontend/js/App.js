@@ -29,8 +29,8 @@ function save(key, value) {
 /* ---------- Estado ---------- */
 const state = {
   messages: load("rag.chat", []),   // [{role, content, sufficient?, sources?, image?}]
-  docs: load("rag.docs", []),       // [{id, name}] documentos ya indexados
-  selectedDoc: load("rag.doc", ""),
+  docs: load("rag.docs.v2", []),    // [{id, name}] documentos ya indexados en la API
+  selectedDoc: load("rag.doc.v2", ""),
   busy: false,
 };
 
@@ -272,7 +272,7 @@ function renderDocSelect() {
 }
 docSelect.addEventListener("change", () => {
   state.selectedDoc = docSelect.value;
-  save("rag.doc", state.selectedDoc);
+  save("rag.doc.v2", state.selectedDoc);
 });
 
 /* ---------- Subida y seguimiento de jobs ---------- */
@@ -335,15 +335,15 @@ async function startUpload(file) {
   }
 
   try {
-    const { job_id } = await api.uploadDocument(file);
+    const { job_id, document_id } = await api.uploadDocument(file);
     item.update({ status: "pending", progress: 0 });
-    await track(job_id, item, file.name);
+    await track(job_id, document_id, item, file.name);
   } catch (e) {
     item.fail(e.message);
   }
 }
 
-async function track(jobId, item, fallbackName) {
+async function track(jobId, documentId, item, fallbackName) {
   let delay = 1000;
   let failures = 0;
 
@@ -355,10 +355,10 @@ async function track(jobId, item, fallbackName) {
       item.update(job);
 
       if (job.status === "completed") {
-        const id = job.document_id ?? jobId;
+        const id = documentId;
         if (!state.docs.some((d) => d.id === id)) {
           state.docs.push({ id, name: job.filename ?? fallbackName });
-          save("rag.docs", state.docs);
+          save("rag.docs.v2", state.docs);
           renderDocSelect();
         }
         return;
