@@ -1,10 +1,15 @@
-.PHONY: up up-ai down logs ps install test lint fmt
+.PHONY: init up up-full up-ai down logs ps install test lint fmt
 
-up:
+init:
+	@python -c "import pathlib, shutil; dst = pathlib.Path('.env'); dst.exists() or shutil.copyfile('.env.example', dst)"
+
+up: init
 	docker compose up --build
 
-up-ai:
+up-full: init
 	docker compose --profile ollama up --build
+
+up-ai: up-full
 
 down:
 	docker compose --profile ollama down
