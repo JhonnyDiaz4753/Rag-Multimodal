@@ -28,8 +28,9 @@ async function request(path, { method = "GET", json, form } = {}) {
   const base = apiBase.replace(/\/$/, "");
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), LIMITS.requestTimeoutMs);
-  const requestId = globalThis.crypto?.randomUUID?.()
-    ?? `web-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const requestId =
+    globalThis.crypto?.randomUUID?.() ??
+    `web-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   try {
     const res = await fetch(base + path, {
@@ -46,15 +47,24 @@ async function request(path, { method = "GET", json, form } = {}) {
       let detail = "";
       try {
         const body = await res.json();
-        detail = typeof body.detail === "string" ? body.detail : body.message || "";
-      } catch { /* respuesta sin JSON */ }
-      throw new ApiError(detail || `El servidor respondió con el error ${res.status}.`, res.status);
+        detail =
+          typeof body.detail === "string" ? body.detail : body.message || "";
+      } catch {
+        /* respuesta sin JSON */
+      }
+      throw new ApiError(
+        detail || `El servidor respondió con el error ${res.status}.`,
+        res.status,
+      );
     }
     return await res.json();
   } catch (e) {
     if (e instanceof ApiError) throw e;
-    if (e.name === "AbortError") throw new ApiError("El servidor tardó demasiado en responder.");
-    throw new ApiError("No se pudo conectar con el servidor. Revisa la URL de la API en Conexión.");
+    if (e.name === "AbortError")
+      throw new ApiError("El servidor tardó demasiado en responder.");
+    throw new ApiError(
+      "No se pudo conectar con el servidor. Revisa la URL de la API en Conexión.",
+    );
   } finally {
     clearTimeout(timer);
   }

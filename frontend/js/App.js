@@ -28,17 +28,12 @@ function save(key, value) {
 }
 
 const state = {
-  messages: load("rag.chat", []),   // [{role, content, sufficient?, sources?, image?}]
-  docs: load("rag.docs.v2", []),    // [{id, name}] documentos ya indexados en la API
+  messages: load("rag.chat", []),   
+  docs: load("rag.docs.v2", []),    
   selectedDoc: load("rag.doc.v2", ""),
   busy: false,
 };
 
-const SUGGESTIONS = [
-  "¿Cada cuánto debo hacer el mantenimiento?",
-  "Muéstrame el diagrama del lazo de control",
-  "¿Qué clima hará mañana?",
-];
 
 const STAGE_LABEL = {
   parsing: "Leyendo páginas",
@@ -80,10 +75,9 @@ function renderAll() {
 
 function renderWelcome() {
   return el("div", { class: "welcome" },
-    el("h2", { text: "¿Qué quieres saber de tus manuales?" }),
+    el("h2", { text: "¿Qué quieres saber de tus PDF?" }),
     el("p", { text: "Sube un PDF y pregunta en lenguaje natural. Cada respuesta indica de qué página salió." }),
-    el("div", { class: "suggestions" },
-      SUGGESTIONS.map((s) => el("button", { type: "button", text: s, onclick: () => send(s) }))),
+    
   );
 }
 
