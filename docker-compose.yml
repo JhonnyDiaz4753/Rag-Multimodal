@@ -31,11 +31,6 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
-    # GPU NVIDIA (opcional): descomenta
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
 
   ollama-init:
     profiles: ["ollama"]

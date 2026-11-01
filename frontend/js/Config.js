@@ -1,3 +1,5 @@
+/* Configuración persistida del cliente: URL de la API y límites de uso. */
+
 const KEY = "rag.settings.v2";
 const LEGACY_KEY = "rag.settings";
 

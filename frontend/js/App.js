@@ -1,7 +1,8 @@
+/* Interfaz del chat: estado, render, subida de PDFs y seguimiento de jobs. */
+
 import { getSettings, saveSettings, LIMITS } from "./Config.js";
 import * as api from "./Api.js";
 
-/* ---------- Utilidades ---------- */
 const $ = (sel, root = document) => root.querySelector(sel);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -26,7 +27,6 @@ function save(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* cuota llena */ }
 }
 
-/* ---------- Estado ---------- */
 const state = {
   messages: load("rag.chat", []),   // [{role, content, sufficient?, sources?, image?}]
   docs: load("rag.docs.v2", []),    // [{id, name}] documentos ya indexados en la API
@@ -47,7 +47,6 @@ const STAGE_LABEL = {
   indexing: "Indexando",
 };
 
-/* ---------- Markdown seguro ---------- */
 function renderMarkdown(text) {
   // La salida del LLM no es confiable: siempre se sanea antes de insertar HTML.
   if (!window.marked || !window.DOMPurify) {
@@ -67,7 +66,6 @@ if (window.DOMPurify) {
   });
 }
 
-/* ---------- Render del chat ---------- */
 const messagesEl = $("#messages");
 
 function renderAll() {
@@ -159,7 +157,6 @@ function scrollToEnd() {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-/* ---------- Lightbox ---------- */
 const lightbox = $("#lightbox");
 function openLightbox(url, alt, img) {
   $("#lightbox-img").src = url;
@@ -169,7 +166,6 @@ function openLightbox(url, alt, img) {
 }
 lightbox.addEventListener("click", (e) => { if (e.target === lightbox) lightbox.close(); });
 
-/* ---------- Envío de preguntas ---------- */
 function persistChat() {
   save("rag.chat", state.messages.filter((m) => m.role !== "error").slice(-60));
 }
@@ -231,7 +227,6 @@ function retry(errorMsg) {
   send(errorMsg.retry);
 }
 
-/* ---------- Compositor ---------- */
 const form = $("#composer");
 const input = $("#question");
 
@@ -261,7 +256,6 @@ $("#new-chat").addEventListener("click", () => {
   renderAll();
 });
 
-/* ---------- Documentos: selector ---------- */
 const docSelect = $("#doc-select");
 
 function renderDocSelect() {
@@ -275,7 +269,6 @@ docSelect.addEventListener("change", () => {
   save("rag.doc.v2", state.selectedDoc);
 });
 
-/* ---------- Subida y seguimiento de jobs ---------- */
 const dropzone = $("#dropzone");
 const fileInput = $("#file-input");
 const jobsEl = $("#jobs");
@@ -373,7 +366,6 @@ async function track(jobId, documentId, item, fallbackName) {
   }
 }
 
-/* ---------- Conexión ---------- */
 const mockToggle = $("#mock-toggle");
 const apiBase = $("#api-base");
 const mockBadge = $("#mock-badge");
@@ -388,7 +380,6 @@ function syncSettingsUI() {
 mockToggle.addEventListener("change", () => { saveSettings({ mock: mockToggle.checked }); syncSettingsUI(); });
 apiBase.addEventListener("change", () => { saveSettings({ apiBase: apiBase.value.trim().replace(/\/$/, "") }); });
 
-/* ---------- Inicio ---------- */
 syncSettingsUI();
 renderDocSelect();
 renderAll();
