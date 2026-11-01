@@ -38,6 +38,7 @@ class QdrantVectorStore(VectorStorePort):
     ) -> None:
         self._collection = settings.qdrant_collection
         self._embedding_dim = settings.embedding_dim
+        self._min_relevance_score = settings.min_relevance_score
         self._client = client or AsyncQdrantClient(url=settings.qdrant_url)
         self._sparse_encoder = sparse_encoder or SparseTextEmbedding(
             model_name=settings.sparse_embedding_model
@@ -211,10 +212,16 @@ class QdrantVectorStore(VectorStorePort):
                 ),
             ],
             query=models.FusionQuery(fusion=models.Fusion.RRF),
-            limit=top_k,
+            limit=prefetch_limit,
+            score_threshold=self._min_relevance_score,
             with_payload=True,
         )
-        return [self._to_retrieved_chunk(point) for point in response.points]
+        results = [
+            self._to_retrieved_chunk(point)
+            for point in response.points
+            if point.score >= self._min_relevance_score
+        ]
+        return results[:top_k]
 
     async def delete_document(self, doc_id: str) -> None:
         if not doc_id.strip():

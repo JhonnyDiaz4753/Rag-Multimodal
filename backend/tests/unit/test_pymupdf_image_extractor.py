@@ -8,6 +8,7 @@ import pymupdf
 
 from src.domain import BBox
 from src.infrastructure.images import LocalImageStorage, PymupdfImageExtractor
+from src.infrastructure.parsers import PymupdfDocumentParser
 
 
 def _write_pdf_with_image(path: Path, *, size: int) -> Path:
@@ -40,3 +41,17 @@ def test_extractor_discards_images_below_threshold(tmp_path: Path) -> None:
     refs = extractor.extract(_write_pdf_with_image(tmp_path / "small.pdf", size=8), doc_id="d1")
 
     assert refs == ()
+
+
+def test_document_parser_includes_extracted_images(tmp_path: Path) -> None:
+    storage = LocalImageStorage(tmp_path)
+    parser = PymupdfDocumentParser(storage)
+
+    document = parser.parse(
+        _write_pdf_with_image(tmp_path / "sample.pdf", size=64),
+        doc_id="d1",
+        filename="sample.pdf",
+    )
+
+    assert len(document.pages[0].images) == 1
+    assert storage.get(document.pages[0].images[0].id) == document.pages[0].images[0]

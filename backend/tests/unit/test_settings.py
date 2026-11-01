@@ -5,7 +5,13 @@ from src.config.settings import Settings, get_settings
 
 
 def test_defaults_without_env_file(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("APP_ENV", "LOG_FORMAT", "EMBEDDING_DIM"):
+    for name in (
+        "APP_ENV",
+        "LOG_FORMAT",
+        "EMBEDDING_DIM",
+        "MAX_UPLOAD_MB",
+        "MIN_RELEVANCE_SCORE",
+    ):
         monkeypatch.delenv(name, raising=False)
 
     settings = Settings(_env_file=None)
@@ -15,6 +21,9 @@ def test_defaults_without_env_file(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.log_format == "json"
     assert settings.embedding_dim == 1024
     assert settings.enable_image_captioning is False
+    assert settings.max_upload_mb == 50
+    assert settings.max_upload_bytes == 50 * 1024 * 1024
+    assert settings.min_relevance_score == 0.01
 
 
 def test_environment_variables_override_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -22,6 +31,7 @@ def test_environment_variables_override_defaults(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("EMBEDDING_DIM", "768")
     monkeypatch.setenv("ENABLE_IMAGE_CAPTIONING", "true")
     monkeypatch.setenv("QDRANT_COLLECTION", "custom-manuals")
+    monkeypatch.setenv("MAX_UPLOAD_MB", "12")
 
     settings = Settings(_env_file=None)
 
@@ -29,6 +39,7 @@ def test_environment_variables_override_defaults(monkeypatch: pytest.MonkeyPatch
     assert settings.embedding_dim == 768
     assert settings.enable_image_captioning is True
     assert settings.qdrant_collection == "custom-manuals"
+    assert settings.max_upload_bytes == 12 * 1024 * 1024
 
 
 def test_invalid_environment_is_rejected() -> None:

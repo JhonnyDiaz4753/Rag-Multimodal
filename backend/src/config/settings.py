@@ -48,9 +48,13 @@ class Settings(BaseSettings):
     log_format: LogFormat = "json"
 
     data_dir: Path = Path("./data")
+    upload_dir: Path = Path("./data/uploads")
+    max_upload_mb: int = Field(default=50, ge=1)
+    job_ttl_seconds: int = Field(default=86400, ge=1)
     redis_url: str = "redis://localhost:6379/0"
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "manuals"
+    min_relevance_score: float = Field(default=0.01, ge=0.0, le=1.0)
     sparse_embedding_model: str = "Qdrant/bm25"
 
     ollama_base_url: str = "http://localhost:11434"
@@ -116,6 +120,11 @@ class Settings(BaseSettings):
             )
 
         return self
+
+    @property
+    def max_upload_bytes(self) -> int:
+        """Tamaño máximo de subida expresado en bytes."""
+        return self.max_upload_mb * 1024 * 1024
 
 
 def _validate_url(value: str, allowed_schemes: set[str], field_name: str) -> str:

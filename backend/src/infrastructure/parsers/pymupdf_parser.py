@@ -12,13 +12,16 @@ from typing import Any
 import pymupdf
 
 from src.application.ports.document_parser import DocumentParserPort
+from src.application.ports.image_storage import ImageStoragePort
 from src.domain.entities import (
     BBox,
     Document,
+    ImageRef,
     Page,
     TableBlock,
     TextBlock,
 )
+from src.infrastructure.images.pymupdf_image_extractor import PymupdfImageExtractor
 
 _BODY_HEADING_RATIO = 1.5
 _MAX_HEADING_LEVEL = 6
@@ -28,7 +31,17 @@ _BOLD_FLAG = 16
 class PymupdfDocumentParser(DocumentParserPort):
     """Extrae bloques de texto y tablas con coordenadas de un PDF."""
 
+    def __init__(self, image_storage: ImageStoragePort | None = None) -> None:
+        self._image_extractor = (
+            PymupdfImageExtractor(image_storage) if image_storage is not None else None
+        )
+
     def parse(self, pdf_path: Path, *, doc_id: str, filename: str) -> Document:
+        images_by_page: dict[int, list[ImageRef]] = {}
+        if self._image_extractor is not None:
+            for image in self._image_extractor.extract(pdf_path, doc_id=doc_id):
+                images_by_page.setdefault(image.page, []).append(image)
+
         with pymupdf.open(str(pdf_path)) as document:
             blocks_by_page: dict[int, list[TextBlock]] = {}
             tables_by_page: dict[int, list[TableBlock]] = {}
@@ -57,6 +70,7 @@ class PymupdfDocumentParser(DocumentParserPort):
                     number=page_number,
                     text_blocks=tuple(blocks_by_page.get(page_number, [])),
                     tables=tuple(tables_by_page.get(page_number, [])),
+                    images=tuple(images_by_page.get(page_number, [])),
                 )
                 for page_number in range(1, document.page_count + 1)
             )

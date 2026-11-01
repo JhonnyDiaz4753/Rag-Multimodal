@@ -47,7 +47,12 @@ def _chunk(chunk_id: str, doc_id: str, text: str, page: int = 1) -> Chunk:
 
 def _store(client: AsyncQdrantClient) -> QdrantVectorStore:
     return QdrantVectorStore(
-        Settings(_env_file=None, embedding_dim=3, qdrant_collection="test-chunks"),
+        Settings(
+            _env_file=None,
+            embedding_dim=3,
+            qdrant_collection="test-chunks",
+            min_relevance_score=0.01,
+        ),
         client=client,
         sparse_encoder=_FakeSparseEncoder(),
     )
@@ -116,10 +121,63 @@ def test_hybrid_search_returns_domain_chunks_and_filters_documents() -> None:
             )
             assert len(results) == 1
             assert results[0].chunk == expected
+            assert results[0].chunk.image_ids == ("image-1",)
             assert results[0].score > 0
 
             await store.delete_document("doc-1")
             assert (await client.count("test-chunks", exact=True)).count == 1
+
+    asyncio.run(run())
+
+
+def test_sparse_keyword_match_can_outweigh_dense_rank_in_rrf() -> None:
+    async def run() -> None:
+        async with _memory_client() as client:
+            store = _store(client)
+            await store.ensure_collection()
+            lexical_match = _chunk("lexical", "doc-1", "pressure valve")
+            dense_match = _chunk("dense", "doc-2", "unrelated keyword")
+            await store.upsert(
+                [lexical_match, dense_match],
+                [[0, 1, 0], [1, 0, 0]],
+            )
+
+            results = await store.hybrid_search(
+                query_text="pressure valve",
+                query_vector=[1, 0, 0],
+                top_k=2,
+            )
+
+            assert [result.chunk.id for result in results] == ["lexical", "dense"]
+            assert results[0].score > results[1].score
+
+    asyncio.run(run())
+
+
+def test_hybrid_search_filters_results_below_rrf_relevance_threshold() -> None:
+    async def run() -> None:
+        async with _memory_client() as client:
+            store = QdrantVectorStore(
+                Settings(
+                    _env_file=None,
+                    embedding_dim=3,
+                    qdrant_collection="test-chunks",
+                    min_relevance_score=0.51,
+                ),
+                client=client,
+                sparse_encoder=_FakeSparseEncoder(),
+            )
+            await store.ensure_collection()
+            chunk = _chunk("c1", "doc-1", "unrelated keyword")
+            await store.upsert([chunk], [[1, 0, 0]])
+
+            results = await store.hybrid_search(
+                query_text="pressure valve",
+                query_vector=[1, 0, 0],
+                top_k=5,
+            )
+
+            assert results == []
 
     asyncio.run(run())
 
