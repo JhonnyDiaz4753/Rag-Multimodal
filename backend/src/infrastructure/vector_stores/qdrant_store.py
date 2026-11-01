@@ -39,7 +39,7 @@ class QdrantVectorStore(VectorStorePort):
         self._collection = settings.qdrant_collection
         self._embedding_dim = settings.embedding_dim
         self._min_relevance_score = settings.min_relevance_score
-        self._client = client or AsyncQdrantClient(url=settings.qdrant_url)
+        self._client = client or AsyncQdrantClient(url=settings.qdrant_url, timeout=30)
         self._sparse_encoder = sparse_encoder or SparseTextEmbedding(
             model_name=settings.sparse_embedding_model
         )

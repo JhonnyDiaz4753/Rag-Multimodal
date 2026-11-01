@@ -8,7 +8,12 @@ import httpx
 
 from src.application.ports.embeddings import EmbeddingPort
 from src.config.settings import Settings
-from src.infrastructure.embeddings._http import _parse_vectors, _validate_texts
+from src.infrastructure.embeddings._http import (
+    HTTP_TIMEOUT,
+    _parse_vectors,
+    _retry_http_request,
+    _validate_texts,
+)
 
 
 class OpenAIEmbeddingAdapter(EmbeddingPort):
@@ -34,6 +39,7 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
         vectors = await self._embed([text])
         return vectors[0]
 
+    @_retry_http_request
     async def _embed(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:
             return []
@@ -43,10 +49,11 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
             response = await self._client.post(
                 f"{self._base_url}/embeddings",
                 json=payload,
+                timeout=HTTP_TIMEOUT,
                 headers={"Authorization": f"Bearer {self._api_key}"},
             )
         else:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
                 response = await client.post(
                     f"{self._base_url}/embeddings",
                     json=payload,

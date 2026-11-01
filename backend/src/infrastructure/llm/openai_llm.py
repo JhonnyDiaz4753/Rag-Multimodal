@@ -10,6 +10,7 @@ import httpx
 
 from src.application.ports.llm import LLMPort
 from src.config.settings import Settings
+from src.infrastructure.embeddings._http import HTTP_TIMEOUT, _retry_http_request
 
 
 class OpenAILLMAdapter(LLMPort):
@@ -100,6 +101,7 @@ class OpenAILLMAdapter(LLMPort):
         messages.append({"role": "user", "content": prompt})
         return messages
 
+    @_retry_http_request
     async def _post(self, path: str, payload: dict[str, object]) -> httpx.Response:
         headers = {"Authorization": f"Bearer {self._api_key}"}
         if self._client is not None:
@@ -107,9 +109,10 @@ class OpenAILLMAdapter(LLMPort):
                 f"{self._base_url}{path}",
                 json=payload,
                 headers=headers,
+                timeout=HTTP_TIMEOUT,
             )
         else:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
                 response = await client.post(
                     f"{self._base_url}{path}",
                     json=payload,

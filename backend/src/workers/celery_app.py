@@ -31,6 +31,9 @@ def build_celery_app(settings: Settings | None = None) -> Celery:
         worker_prefetch_multiplier=1,
         worker_hijack_root_logger=False,
         broker_connection_retry_on_startup=True,
+        broker_connection_timeout=5,
+        redis_socket_connect_timeout=5,
+        redis_socket_timeout=5,
         task_default_queue="rag",
     )
     app.autodiscover_tasks(["src.workers"])

@@ -8,7 +8,12 @@ import httpx
 
 from src.application.ports.embeddings import EmbeddingPort
 from src.config.settings import Settings
-from src.infrastructure.embeddings._http import _parse_vectors, _validate_texts
+from src.infrastructure.embeddings._http import (
+    HTTP_TIMEOUT,
+    _parse_vectors,
+    _request_with_retry,
+    _validate_texts,
+)
 
 
 class OllamaEmbeddingAdapter(EmbeddingPort):
@@ -37,11 +42,18 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
         _validate_texts(texts)
         payload = {"model": self._model, "input": list(texts)}
         if self._client is not None:
-            response = await self._client.post(f"{self._base_url}/api/embed", json=payload)
+            response = await _request_with_retry(
+                lambda: self._client.post(
+                    f"{self._base_url}/api/embed",
+                    json=payload,
+                    timeout=HTTP_TIMEOUT,
+                )
+            )
         else:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(f"{self._base_url}/api/embed", json=payload)
-        response.raise_for_status()
+            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+                response = await _request_with_retry(
+                    lambda: client.post(f"{self._base_url}/api/embed", json=payload)
+                )
         result = response.json()
         if not isinstance(result, dict):
             raise ValueError("la respuesta de embeddings Ollama no es un objeto válido")

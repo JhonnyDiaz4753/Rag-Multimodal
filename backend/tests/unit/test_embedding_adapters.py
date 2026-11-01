@@ -14,6 +14,7 @@ from src.infrastructure.embeddings import (
     OpenAIEmbeddingAdapter,
     build_embedding_adapter,
 )
+from src.infrastructure.embeddings._http import HTTP_TIMEOUT
 
 
 def _client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.AsyncClient:
@@ -22,10 +23,12 @@ def _client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.AsyncCl
 
 def test_ollama_embeds_documents_in_one_batch_and_embeds_query() -> None:
     requests: list[dict[str, object]] = []
+    request_timeouts: list[dict[str, float]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         requests.append(payload)
+        request_timeouts.append(request.extensions["timeout"])
         result = [[1, 2], [3, 4]][: len(payload["input"])]
         return httpx.Response(
             200,
@@ -50,6 +53,7 @@ def test_ollama_embeds_documents_in_one_batch_and_embeds_query() -> None:
         {"model": "nomic-embed-text", "input": ["uno", "dos"]},
         {"model": "nomic-embed-text", "input": ["consulta"]},
     ]
+    assert request_timeouts == [HTTP_TIMEOUT.as_dict(), HTTP_TIMEOUT.as_dict()]
 
 
 def test_openai_batches_and_restores_provider_result_order() -> None:
@@ -85,6 +89,7 @@ def test_openai_batches_and_restores_provider_result_order() -> None:
     assert vectors == [[1.0, 2.0], [3.0, 4.0]]
     assert len(requests) == 1
     assert requests[0].url == "https://api.openai.com/v1/embeddings"
+    assert requests[0].extensions["timeout"] == HTTP_TIMEOUT.as_dict()
     assert requests[0].headers["Authorization"].startswith("Bearer ")
     assert json.loads(requests[0].content) == {
         "model": "text-embedding-test",
